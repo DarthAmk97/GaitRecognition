@@ -43,11 +43,11 @@ def create_model(): #main one
 def train(model,train_datagen,test_datagen):
     model.compile(optimizer='sgd', loss='categorical_crossentropy', metrics=['accuracy'])
     model.fit_generator(
-            train_generator,
+            train_datagen,
             steps_per_epoch=None,
             epochs=50,
             verbose=1,
-            validation_data=validation_generator,
+            validation_data=test_datagen,
             validation_steps=None
     )
 
@@ -128,41 +128,41 @@ def ActivateGPU():
     K.set_session(sess)
 
 # this is the augmentation configuration we will use for training
-train_datagen = ImageDataGenerator(
-            rescale=1./255,
-            shear_range=0.2,
-            zoom_range=0.2,
-            horizontal_flip=True)
-    # this is the augmentation configuration we will use for testing:
-    # only rescaling
-test_datagen = ImageDataGenerator(rescale=1./255)
+def trainingData():
+    train_datagen = ImageDataGenerator(
+        rescale=1./255,
+        shear_range=0.2,
+        zoom_range=0.2,
+        horizontal_flip=True)
+    train_generator = train_datagen.flow_from_directory(
+        './Images',  # this is the target directory
+        target_size=(352, 240),
+        batch_size=40,
+        class_mode='categorical')
+    return train_generator
 
-    # this is a generator that will read pictures found in
-    # subfolers of 'data/train', and indefinitely generate
-    # batches of augmented image data
-train_generator = train_datagen.flow_from_directory(
-            './Images',  # this is the target directory
-            target_size=(352, 240),  # all images will be resized to 150x150
-            batch_size=40,
-            class_mode='categorical')  # since we use binary_crossentropy loss, we need binary labels
-    # this is a similar generator, for validation data
-validation_generator = test_datagen.flow_from_directory(
-            './test',
-            target_size=(352, 240),
-            batch_size=40,
-            class_mode='categorical')
+def testingData():
+    test_datagen = ImageDataGenerator(rescale=1./255)
+    validation_generator = test_datagen.flow_from_directory(
+        './test',
+        target_size=(352, 240),
+        batch_size=40,
+        class_mode='categorical')
+    return validation_generator
 
 def main():
-
+    ActivateGPU()
     model = create_model()
-    train(model,train_datagen,test_datagen)
+    trainy=trainingData()
+    testy=testingData()
+    train(model,trainy,testy)
     save_model(model)
     EvaluateModel()
     RecognizeOnDirectory()
 
     #call when input is video
-    #obj = VideoToFrames()
-    #obj.run()
+    obj = VideoToFrames()
+    obj.run()
 
 if __name__ == "__main__":
         main()
