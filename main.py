@@ -21,7 +21,8 @@ from keras.datasets import cifar10
 from tensorflow.keras.models import model_from_json
 from tensorflow.keras.models import load_model
 import numpy as np
-
+from VidToFrame import VideoToFrames
+import os
 
 def create_model(): #main one
     model = Sequential()
@@ -158,6 +159,10 @@ def main():
     save_model(model)
     EvaluateModel()
     RecognizeOnDirectory()
+
+    #call when input is video
+    #obj = VideoToFrames()
+    #obj.run()
 
 if __name__ == "__main__":
         main()
