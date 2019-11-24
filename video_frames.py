@@ -8,7 +8,6 @@ class VideoToFrames:
     def run(self):
         listing = os.listdir("video/")
         fgbg = cv2.createBackgroundSubtractorMOG2(history=50 , detectShadows = False)
-        count = 1
 
         for file in listing:
             video = cv2.VideoCapture("video/" + file)
@@ -32,4 +31,3 @@ class VideoToFrames:
                 cv2.imwrite(filename,image)
             video.release()
             print('done')
-            count+=1
