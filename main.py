@@ -6,8 +6,8 @@ from tensorflow.keras.layers import (
     Dropout,
     BatchNormalization,
     ConvLSTM2D,
+    Conv3D,
     LSTM,
-    CuDNNLSTM,
     TimeDistributed
 )
 from tensorflow.keras.preprocessing.image import ImageDataGenerator
@@ -18,36 +18,35 @@ from tensorflow.keras.models import Sequential
 from tensorflow.keras.models import model_from_json
 import simplejson as sj
 from keras.datasets import cifar10
+from tensorflow.keras.models import model_from_json
+from tensorflow.keras.models import load_model
+import numpy as np
 
-def create_model():
+
+def create_model(): #main one
     model = Sequential()
-    model.add((Convolution2D(64, (3, 3), input_shape=(200, 300, 3), activation='relu')))
+    model.add((Convolution2D(64, (3, 3), input_shape=(352, 240, 3), activation='relu')))
     model.add((MaxPooling2D(pool_size=(2, 2))))
-    #model.add(LSTM(units=32,input_shape=(200, 300, 3, None)))
-    model.add(Convolution2D(32, (3, 3), input_shape=(200, 300, 3), activation='relu',name='conv1.1'))
-    model.add(Convolution2D(16, (3, 3), input_shape=(200, 300, 3), activation='relu',name='conv1.2'))
-    model.add(Convolution2D(256, (3, 3), input_shape=(200, 300, 3), activation='relu',name='conv1.3'))
+    model.add((Convolution2D(128, (3, 3), activation='relu')))
     model.add((MaxPooling2D(pool_size=(2, 2))))
     model.add((Flatten()))
     model.add((BatchNormalization()))
-    #model.add(MaxPooling2D(pool_size=(2, 2)))
-    #model.add(BatchNormalization())
-    #model.add(Dropout(0.25))
     model.add(Dense(units=64, activation='relu'))
     model.add(Dense(units=32, activation='relu'))
     model.add(Dense(units=128, activation='relu'))
     model.add(Dropout(0.5))
-    model.add(Dense(units=4, activation='softmax'))
+    model.add(Dense(units=3, activation='softmax'))
     return model
 
-def train(model, training_set, test_set):
+
+def train(model,train_datagen,test_datagen):
     model.compile(optimizer='sgd', loss='categorical_crossentropy', metrics=['accuracy'])
     model.fit_generator(
-            training_set,
+            train_generator,
             steps_per_epoch=None,
             epochs=50,
             verbose=1,
-            validation_data=test_set,
+            validation_data=validation_generator,
             validation_steps=None
     )
 
@@ -60,6 +59,7 @@ def save_model(model):
     )
     print(" [*] Model")
 
+
 def load_model():
     print("Loading...")
     json_file = open("model.json", "r")
@@ -70,75 +70,94 @@ def load_model():
     json_file.close()
     return model
 
-def dataset_provider(datagen):
-    return datagen.flow_from_directory(
-        './Images',
-        target_size=(200, 300),
-        batch_size=16,
-        class_mode='categorical'
-    )
-
-# Primary datagen
-train_datagen = ImageDataGenerator(
-    rescale=1./255,
-    shear_range=0.2,
-    zoom_range=0.2,
-    horizontal_flip=True)
-# Validation datagen
-test_datagen = ImageDataGenerator(rescale=1. / 255)
-
-# Primary Set for training
-training_set = dataset_provider(train_datagen)
-# Secondary / Test set for validation
-test_set = dataset_provider(test_datagen)
-
-
-config = tf.ConfigProto( device_count = {'GPU': 1 , 'CPU': 4} )
-sess = tf.Session(config=config)
-K.set_session(sess)
-#img_load=
-
-#model = create_model()
-#train(model,training_set,test_set)
-#save_model(model)
-#from sklearn.model_selection import train_test_split
-#X_train, X_test, y_train, y_test = train_test_split(training_set, test_set, test_size=0.3, random_state=0)
-
-from tensorflow.keras.models import model_from_json
-from tensorflow.keras.models import load_model
+def EvaluateModel():
 # load json and create model
-json_file = open('model.json', 'r')
-loaded_model_json = json_file.read()
-json_file.close()
-loaded_model = model_from_json(loaded_model_json)
+    json_file = open('model.json', 'r')
+    loaded_model_json = json_file.read()
+    json_file.close()
+    loaded_model = model_from_json(loaded_model_json)
 # load weights into new model
-weights=loaded_model.load_weights("model.h5")
-print("Loaded model from disk")
-loaded_model.summary()
+    weights=loaded_model.load_weights("model.h5")
+    print("Loaded model from disk")
 # evaluate loaded model on test data
-#sgd = SGD(lr=0.01, decay=1e-6, momentum=0.9, nesterov=True)
-loaded_model.compile(loss='categorical_crossentropy', optimizer='sgd', metrics=['accuracy'])
-score = loaded_model.evaluate(test_set, weights)
-print("%s: %.2f%%" % (loaded_model.metrics_names[1], score[1] * 100))
+    loaded_model.compile(loss='categorical_crossentropy', optimizer='sgd', metrics=['accuracy'])
+    score = loaded_model.evaluate(validation_generator, weights)
+    print("%s: %.2f%%" % (loaded_model.metrics_names[1], score[1] * 100))
 
-#import matplotlib.pyplot as plt
-#plt.plot(training_set, test_set)
-#plt.xlabel('Training')
-#plt.ylabel('Test')
-from sklearn.metrics import f1_score, precision_score, recall_score, confusion_matrix
-import numpy as np
+def RecognizeOnDirectory():
+    json_file = open('model.json', 'r')
+    loaded_model_json = json_file.read()
+    json_file.close()
+    loaded_model = model_from_json(loaded_model_json)
+    # load weights into new model
+    weights = loaded_model.load_weights("model.h5")
+    print("Loaded model from disk")
+    folder_path = "D:\GaitRecognition2\gait\core\\00_3"
+    import os
+    from keras.preprocessing import image
+    images = []
+    for img in os.listdir(folder_path):
+        img = os.path.join(folder_path, img)
+        img = image.load_img(img, target_size=(352, 240))
+        img = image.img_to_array(img)
+        img = np.expand_dims(img, axis=0)
+        images.append(img)
 
-#y_pred1 = loaded_model.predict(training_set)
-#y_pred = np.argmax(y_pred1,axis=1)
-#print(y_pred)
-#print(y_pred.shape)
-#print(X_train)
-#print(X_test)
-# Print f1, precision, and recall scores
-#print(precision_score(y_test, y_pred , average="macro"))
-#print(recall_score(y_test, y_pred , average="macro"))
-#print(f1_score(y_test, y_pred , average="macro"))
-import matplotlib as plt
-plt.plot(training_set, test_set)
-plt.xlabel('training')
-plt.ylabel('test')
+    count = 0
+    images = np.vstack(images)
+    classes = loaded_model.predict_classes(images)
+    print(classes)
+    testy = np.asarray(classes)
+    print(len(classes))
+    print("class 0, 1, 2 values: greater is predicted person: ")
+    wow1 = np.count_nonzero(classes == 0)
+    print(wow1)
+    wow2 = np.count_nonzero(classes == 1)
+    print(wow2)
+    wow3 = np.count_nonzero(classes == 2)
+    print(wow3)
+    predicted_class_indices = np.argmax(classes, axis=0)
+    print("Class is: ")
+    print(predicted_class_indices)
+
+def ActivateGPU():
+    config = tf.ConfigProto( device_count = {'GPU': 1 , 'CPU': 4} )
+    sess = tf.Session(config=config)
+    config.gpu_options.allow_growth = True
+    K.set_session(sess)
+
+# this is the augmentation configuration we will use for training
+train_datagen = ImageDataGenerator(
+            rescale=1./255,
+            shear_range=0.2,
+            zoom_range=0.2,
+            horizontal_flip=True)
+    # this is the augmentation configuration we will use for testing:
+    # only rescaling
+test_datagen = ImageDataGenerator(rescale=1./255)
+
+    # this is a generator that will read pictures found in
+    # subfolers of 'data/train', and indefinitely generate
+    # batches of augmented image data
+train_generator = train_datagen.flow_from_directory(
+            './Images',  # this is the target directory
+            target_size=(352, 240),  # all images will be resized to 150x150
+            batch_size=40,
+            class_mode='categorical')  # since we use binary_crossentropy loss, we need binary labels
+    # this is a similar generator, for validation data
+validation_generator = test_datagen.flow_from_directory(
+            './test',
+            target_size=(352, 240),
+            batch_size=40,
+            class_mode='categorical')
+
+def main():
+
+    model = create_model()
+    train(model,train_datagen,test_datagen)
+    save_model(model)
+    EvaluateModel()
+    RecognizeOnDirectory()
+
+if __name__ == "__main__":
+        main()
