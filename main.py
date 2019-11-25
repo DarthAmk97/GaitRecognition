@@ -1,168 +1,49 @@
-from tensorflow.keras.layers import (
-    Convolution2D,
-    MaxPooling2D,
-    Flatten,
-    Dense,
-    Dropout,
-    BatchNormalization,
-    ConvLSTM2D,
-    Conv3D,
-    LSTM,
-    TimeDistributed
-)
-from tensorflow.keras.preprocessing.image import ImageDataGenerator
-import tensorflow as tf
-import tensorflow.keras.backend as K
-from tensorflow.keras.preprocessing.image import ImageDataGenerator
-from tensorflow.keras.models import Sequential
-from tensorflow.keras.models import model_from_json
-import simplejson as sj
-from keras.datasets import cifar10
-from tensorflow.keras.models import model_from_json
-from tensorflow.keras.models import load_model
-import numpy as np
-from VidToFrame import VideoToFrames
-import os
+from tkinter import *
 
-def create_model(): #main one
-    model = Sequential()
-    model.add((Convolution2D(64, (3, 3), input_shape=(352, 240, 3), activation='relu')))
-    model.add((MaxPooling2D(pool_size=(2, 2))))
-    model.add((Convolution2D(128, (3, 3), activation='relu')))
-    model.add((MaxPooling2D(pool_size=(2, 2))))
-    model.add((Flatten()))
-    model.add((BatchNormalization()))
-    model.add(Dense(units=64, activation='relu'))
-    model.add(Dense(units=32, activation='relu'))
-    model.add(Dense(units=128, activation='relu'))
-    model.add(Dropout(0.5))
-    model.add(Dense(units=3, activation='softmax'))
-    return model
+root = Tk()  # create root window
+root.title("Basic GUI Layout")  # title of the GUI window
+root.maxsize(900, 600)  # specify the max size the window can expand to
+root.config(bg="skyblue")  # specify background color
+
+# Create left and right frames
+left_frame = Frame(root, width=200, height=400, bg='grey')
+left_frame.grid(row=0, column=0, padx=10, pady=5)
+right_frame = Frame(root, width=650, height=400, bg='grey')
+right_frame.grid(row=0, column=1, padx=10, pady=5)
+
+# Create frames and labels in left_frame
+Label(left_frame, text="Original Image").grid(row=0, column=0, padx=5, pady=5)
+
+# load image to be "edited"
+image = PhotoImage(file="person-man.png")
+original_image = image.subsample(3, 3)  # resize image using subsample
+Label(left_frame, image=original_image).grid(row=1, column=0, padx=5, pady=5)
+
+# Display image in right_frame
+Label(right_frame, image=image).grid(row=0, column=0, padx=5, pady=5)
+
+# Create tool bar frame
+tool_bar = Frame(left_frame, width=250, height=200)
+tool_bar.grid(row=2, column=0, padx=5, pady=5)
 
 
-def train(model,train_datagen,test_datagen):
-    model.compile(optimizer='sgd', loss='categorical_crossentropy', metrics=['accuracy'])
-    model.fit_generator(
-            train_datagen,
-            steps_per_epoch=None,
-            epochs=50,
-            verbose=1,
-            validation_data=test_datagen,
-            validation_steps=None
-    )
-
-def save_model(model):
-    print("Saving...")
-    model.save_weights("model.h5")
-    print(" [*] Weights")
-    open("model.json", "w").write(
-            sj.dumps(sj.loads(model.to_json()), indent=4)
-    )
-    print(" [*] Model")
+# Example labels that could be displayed under the "Tool" menu
+#Button(tool_bar, text="load").grid(row=1, column=0, padx=5, pady=5)
+Button(tool_bar, text="Save", width= 20).grid(row=1, column=0, padx=5, pady=5)
+Button(tool_bar, text="Delete",width= 20).grid(row=2, column=0, padx=5, pady=5)
 
 
-def load_model():
-    print("Loading...")
-    json_file = open("model.json", "r")
-    model = model_from_json(json_file.read())
-    print(" [*] Model")
-    model.load_weights("model.h5")
-    print(" [*] Weights")
-    json_file.close()
-    return model
+list1 = ['live record','Verify person'];
+c=StringVar()
+droplist=OptionMenu(tool_bar,c, *list1)
+droplist.config(width=18)
+c.set('load')
+droplist.grid(row = 3, column=0)
+Button(tool_bar, text="Recognise",width= 20).grid(row=4, column=0, padx=5, pady=5)
+Button(tool_bar, text="Delete",width= 20).grid(row=5, column=0, padx=5, pady=5)
 
-def EvaluateModel():
-# load json and create model
-    json_file = open('model.json', 'r')
-    loaded_model_json = json_file.read()
-    json_file.close()
-    loaded_model = model_from_json(loaded_model_json)
-# load weights into new model
-    weights=loaded_model.load_weights("model.h5")
-    print("Loaded model from disk")
-# evaluate loaded model on test data
-    loaded_model.compile(loss='categorical_crossentropy', optimizer='sgd', metrics=['accuracy'])
-    score = loaded_model.evaluate(validation_generator, weights)
-    print("%s: %.2f%%" % (loaded_model.metrics_names[1], score[1] * 100))
+Label(tool_bar, text="Current Database object",width= 20).grid(row=6, column=0, padx=5, pady=5)
+Label(tool_bar, text="recognised objects names").grid(row=7, column=0, padx=5, pady=5)
 
-def RecognizeOnDirectory():
-    json_file = open('model.json', 'r')
-    loaded_model_json = json_file.read()
-    json_file.close()
-    loaded_model = model_from_json(loaded_model_json)
-    # load weights into new model
-    weights = loaded_model.load_weights("model.h5")
-    print("Loaded model from disk")
-    folder_path = "D:\GaitRecognition2\gait\core\\00_3"
-    import os
-    from keras.preprocessing import image
-    images = []
-    for img in os.listdir(folder_path):
-        img = os.path.join(folder_path, img)
-        img = image.load_img(img, target_size=(352, 240))
-        img = image.img_to_array(img)
-        img = np.expand_dims(img, axis=0)
-        images.append(img)
 
-    count = 0
-    images = np.vstack(images)
-    classes = loaded_model.predict_classes(images)
-    print(classes)
-    testy = np.asarray(classes)
-    print(len(classes))
-    print("class 0, 1, 2 values: greater is predicted person: ")
-    wow1 = np.count_nonzero(classes == 0)
-    print(wow1)
-    wow2 = np.count_nonzero(classes == 1)
-    print(wow2)
-    wow3 = np.count_nonzero(classes == 2)
-    print(wow3)
-    predicted_class_indices = np.argmax(classes, axis=0)
-    print("Class is: ")
-    print(predicted_class_indices)
-
-def ActivateGPU():
-    config = tf.ConfigProto( device_count = {'GPU': 1 , 'CPU': 4} )
-    sess = tf.Session(config=config)
-    config.gpu_options.allow_growth = True
-    K.set_session(sess)
-
-# this is the augmentation configuration we will use for training
-def trainingData():
-    train_datagen = ImageDataGenerator(
-        rescale=1./255,
-        shear_range=0.2,
-        zoom_range=0.2,
-        horizontal_flip=True)
-    train_generator = train_datagen.flow_from_directory(
-        './Images',  # this is the target directory
-        target_size=(352, 240),
-        batch_size=40,
-        class_mode='categorical')
-    return train_generator
-
-def testingData():
-    test_datagen = ImageDataGenerator(rescale=1./255)
-    validation_generator = test_datagen.flow_from_directory(
-        './test',
-        target_size=(352, 240),
-        batch_size=40,
-        class_mode='categorical')
-    return validation_generator
-
-def main():
-    ActivateGPU()
-    model = create_model()
-    trainy=trainingData()
-    testy=testingData()
-    train(model,trainy,testy)
-    save_model(model)
-    EvaluateModel()
-    RecognizeOnDirectory()
-
-    #call when input is video
-    obj = VideoToFrames()
-    obj.run()
-
-if __name__ == "__main__":
-        main()
+root.mainloop()
