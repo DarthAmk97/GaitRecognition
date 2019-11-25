@@ -153,6 +153,7 @@ def testingData():
     return validation_generator
 
 def plotmodel():
+    model = create_model()
     os.environ["PATH"] += os.pathsep + 'C:/Program Files (x86)/Graphviz2.38/bin/'
     plot_model(model, to_file='model_plot.bmp', show_shapes=True, show_layer_names=True)
 
